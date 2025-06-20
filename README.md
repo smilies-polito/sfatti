@@ -1,93 +1,188 @@
-# Spiker - MNIST Challenge ICIP 2025
+# MNIST Challenge ICIP 2025
 
+## Introduction
 
+This project addresses the [Digit Recognition Low Power and Speed Challenge](https://mlunglma.github.io/challenge.html#overview) at **ICIP 2025**, aiming at developing an FPGA-based accelerator capable of performing efficient and accurate handwritten digit recognition. Specifically, our solution leverages **[Spiker+](https://github.com/alessiocarpegna/spikerplus)**, an open-source framework designed for the rapid development, optimization, and deployment of **Spiking Neural Networks** (**SNNs**) on **FPGA** platforms. The main objective is optimizing classification accuracy, inference speed, and energy efficiency by exploring design trade-offs between SNN complexity and FPGA resource constraints.
 
-## Getting started
+--  ADD A REFERENCE TO THE PAPER
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+## 📁 Repository Structure
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
-
-## Add your files
-
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/ee/gitlab-basics/add-file.html#add-a-file-using-the-command-line) or push an existing Git repository with the following command:
+```bash
+├── mnist.py                        # python script for Spiker flow
+├── README.md                       # README file
+├── challenge_environment.yml       # conda environment
+├── configurations.py               # configuration file for mnist.py script
+├── constraints.xdc                 # xdc constraints file
+├── images
+│   └── workflow.png                
+├── mnist_optuna.py                 # optuna script
+└── output                          # output folder with hdl (.vhd) and memory coefficient files (.coe)
+    ├── *.vhd
+    ├── *.coe
 
 ```
-cd existing_repo
-git remote add origin https://gitlabtsgroup.polito.it/neuromorphic/hardware/spiker-mnist.git
-git branch -M main
-git push -uf origin main
+
+## Project Workflow Overview
+
+The workflow involves four main phases:
+
+1. **[Software Exploration](#software-exploration)**: Define the initial SNN model and train using surrogate gradient methods in PyTorch (via **[SnnTorch](https://github.com/jeshraghian/snntorch)** and **[Optuna](https://github.com/optuna/optuna)**). Rapidly evaluate various architectures and neuron models for accuracy and computational efficiency.
+
+2. **[Quantization & HDL Generation (Spiker+)](#quantization--hdl-generation-spiker)**: Perform quantization exploration and optimization using **Spiker+**, identifying optimal numerical precision (bit-widths) for neurons and synaptic weights.
+Automatically generate synthesizable VHDL code from the optimized model.
+
+3. **[Hardware Deployment (Vivado)](#hardware-deployment-vivado)**: Integrate the generated VHDL architecture directly into a Vivado project. Configure the FPGA constraints using a dedicated `.xdc` file. Target FPGA platform: `Xilinx Kintex XC7K160TFBG484-1`.
+
+4. **Evaluation**: Verify performance metrics: inference accuracy, latency, throughput, and resource utilization using Vivado synthesis reports.
+
+![Workflow](./images/workflow.png)
+
+## 🔍 Software Exploration
+
+Prior to hardware generation, hyperparameter exploration was performed using **Optuna**, integrated with the **Spiker+** software stack. The foundation of our model development is **PyTorch**, which provides the core tensor operations and training infrastructure. On top of this, we used **SnnTorch**, a PyTorch-based library specifically designed for training **Spiking Neural Networks** (**SNNs**) using surrogate gradient methods. SnnTorch seamlessly supports neuron dynamics, spike generation, and BPTT-compatible training workflows.
+
+Optuna systematically searched the hyperparameter space, evaluating diverse configurations (layer size, neuron type, training specific parameters) to determine optimal trade-offs. This exploration phase is purely software-driven, with the goal of maximizing model accuracy before any hardware constraints are considered. The selection criterion for promoting a configuration to the hardware design phase was strictly set to models achieving a test accuracy ≥ 97.5%.
+
+## 🔧 Quantization & HDL Generation (Spiker+)
+
+### Environment Setup
+
+To ensure **reproducibility** and **deterministic** execution, we fixed the random seed for Python, NumPy, and PyTorch. This is essential due to stochastic operations (e.g., Poisson-based spike encoding, random weight initialization).
+
+```python
+import torch
+import numpy as np
+import random
+
+seed = 85
+random.seed(seed)
+np.random.seed(seed)
+torch.manual_seed(seed)
+torch.cuda.manual_seed(seed)
+torch.cuda.manual_seed_all(seed)
+torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.benchmark = False
 ```
 
-## Integrate with your tools
+### Configuration Parameters
 
-- [ ] [Set up project integrations](https://gitlabtsgroup.polito.it/neuromorphic/hardware/spiker-mnist/-/settings/integrations)
+The script begins by defining key **parameters** and settings:
 
-## Collaborate with your team
+```python
+OPTIMIZER = False                                   # Enable or disable quantization optimization
+TRAIN = False                                       # Enable or disable training
+batch_size = 64                                     # Training batch size
+n_epochs = 20                                       # Training epochs
+data_dir = "Mnist/data"                             # Dataset folder
+net_dict = net_dict_75                              # Network configuration
+bitwidth_config = bitwidth_config_75_86_26_lif      # Bitwidth configuration
+output_dir = "output_75_86_26"                      # Save output from script
+SD_PATH = "./Trained/trained_state_dict.pt"         # Save trained model parameter
+```
 
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Set auto-merge](https://docs.gitlab.com/ee/user/project/merge_requests/merge_when_pipeline_succeeds.html)
+### Data Loading (MNIST)
 
-## Test and Deploy
+We load the MNIST dataset and convert it into spike trains using Poisson-based rate coding:
 
-Use the built-in continuous integration in GitLab.
+```python
+from spikerplus.dataloaders import MnistDL
 
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/index.html)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+data_loader = MnistDL(data_dir=data_dir, num_steps=net_dict["n_cycles"])
+train_loader, test_loader = data_loader.load(batch_size=batch_size)
+```
 
-***
+### Building the SNN Model
 
-# Editing this README
+The network is defined and instantiated using **Spiker+** (PyTorch-based SNN model):
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+```python
+from spikerplus import NetBuilder
 
-## Suggestions for a good README
+net_builder = NetBuilder(net_dict)
+snn = net_builder.build()
+```
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+### Training the SNN
 
-## Name
-Choose a self-explaining name for your project.
+If `TRAIN=True`, the network undergoes supervised training, employing surrogate-gradient-based **Back-Propagation Through Time** (**BPTT**):
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+```python
+if TRAIN:
+    from spikerplus import Trainer
+    trainer = Trainer(snn)
+    trainer.train(train_loader, test_loader, n_epochs=n_epochs, store=True)
+else:
+    state_dict = torch.load(SD_PATH)
+    snn.load_state_dict(state_dict)
+```
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+At the end of the training phase, if the `store=True` parameter is defined, the trained state dict is saved for later inference.
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+### Optimization via Quantization (Optuna Integration)
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+If `OPTIMIZER=True`, **Spiker+** performs quantization exploration for future hardware development:
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+```python
+if OPTIMIZER:
+    from spikerplus import Optimizer
+    opt = Optimizer(snn, net_dict, optim_config)
+    _ = opt.optimize(test_loader)
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+    optim_config["weights_bw"] = int(input("Pick best weights bitwidth: "))
+    optim_config["neurons_bw"] = int(input("Pick best neurons bitwidth: "))
+    optim_config["fp_dec"] = int(input("Pick best number of fixed-point digits: "))
+```
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+### HDL Generation for FPGA
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+Post-training and optimization, the network is converted into synthesizable **VHDL**. **Spiker+** generates VHDL for FPGA deployment, tailored specifically to network quantization and hardware constraints. The output is structured for **FPGA** synthesis, including neuron models, memories, and interfaces.:
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+```python
+from spikerplus import VhdlGenerator
+from spikerplus.vhdl import write_vhdl, compile_vhdl, elaborate_vhdl
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+vhdl_generator = VhdlGenerator(snn, optim_config if OPTIMIZER else bitwidth_config)
+vhdl_snn = vhdl_generator.generate(functional=False, interface=True)
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+write_vhdl(vhdl_snn, rm=True, output_dir=output_dir)
+compile_vhdl(vhdl_snn, output_dir=output_dir)
+elaborate_vhdl(vhdl_snn, output_dir=output_dir)
+```
 
-## License
-For open source projects, say how it is licensed.
+## ⚙️ Hardware Deployment (Vivado)
 
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+The final optimized **Hardware Description Language** (**HDL**) is automatically generated by the Spiker+ framework. The resulting **VHDL** code is stored within the project’s output directory, as defined by the script parameter `output_dir = "output"`.
+
+This folder contains the full SNN accelerator architecture, including:
+
+ * **Neuron models** (Leaky Integrate-and-Fire, optimized for FPGA efficiency).
+ * **Network parameters** stored in `.coe` files for ROM memory initialization.
+
+### Vivado Project Integration
+
+To deploy the architecture on FPGA hardware:
+
+1. **Vivado Project Setup**: Create a new Vivado project.
+2. **Select FPGA board**: Xilinx Kintex `XC7K160TFBG484-1` from the Vivado *Parts* list.
+3. **Constraints (XDC File)**: The provided `.xdc` constraints file defines physical pin mappings and clock frequency. It ensures correct timing and hardware integration.
+4. **Memory Initialization (.coe Files)**: Generated by Spiker+ to initialize internal memory, these .coe files must be loaded into Vivado's Block RAM memory IPs. The user must istantiate the memory using the **BRAM** block from the IP Library and then load each ROM with the given `.coe` files.
+5. **Synthesis and Implementation**: Finally run Vivado synthesis and implementation processes to generate the final FPGA bitstream and evaluate the results in terms of Power Consumption, Resource utilization and Maximum Clock Frequency. Along with the implementation results running the Functional simulation it is possibile to evaluate the latency of the accelerator.
+
+## 🧪 Test the workflow
+
+To test and reproduce the full workflow, begin by setting up the environment:
+
+1. **Initialize the Conda Environment**: Use the provided `.yml` file to create a reproducible software environment:
+
+```bash
+conda env create -f environment.yml
+conda activate spiker-env
+```
+
+2. **Run the Software Pipeline**: You can execute the Optuna-based exploration script to test how different network configurations affect accuracy, latency, and resource utilization. Most importantly, run the main pipeline script `python mnist.py`.
+This script loads or trains the SNN model, it applies quantization (if enabled), it generates the VHDL files and finally saves trained weights and hardware description into the specified output directory.
+
+3. **Open Vivado for Hardware Deployment**: Launch Vivado and create a new project. Select the target FPGA part: XC7K160TFBG484-1, add the generated VHDL files from the `output/` folder as project sources, add the provided `.xdc` constraints file to map I/O signals and use the generated `.coe` initialization files to instantiate and initialize ROM memories (typically using the Block Memory Generator IP).
+
+4. **Synthesize and Implement the Design**: Run synthesis and implementation in Vivado to generate the final bitstream. This step finalizes the design and allows you to program the FPGA for live testing.

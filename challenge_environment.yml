@@ -1,0 +1,17 @@
+name: challenge_environment
+channels:
+  - defaults
+  - pytorch
+dependencies:
+  - python=3.10
+  - numpy
+  - pip
+  - pip:
+      - torch      
+      - torchvision
+      - torchaudio
+      - snntorch
+      - tabulate
+      - tonic
+      - spikerplus
+      - optuna

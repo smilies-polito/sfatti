@@ -176,8 +176,8 @@ To test and reproduce the full workflow, begin by setting up the environment:
 1. **Initialize the Conda Environment**: Use the provided `.yml` file to create a reproducible software environment:
 
 ```bash
-conda env create -f environment.yml
-conda activate spiker-env
+conda env create -f challenge_environment.yml
+conda activate challenge_environment
 ```
 
 2. **Run the Software Pipeline**: You can execute the Optuna-based exploration script to test how different network configurations affect accuracy, latency, and resource utilization. Most importantly, run the main pipeline script `python mnist.py`.

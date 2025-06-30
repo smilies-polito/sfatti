@@ -1,8 +1,8 @@
 # Generic optimizer config for exploration
 optim_config = {
 	"weights_bw"	: {
-		"min"	: 7,
-		"max"	: 7
+		"min"	: 10,
+		"max"	: 10
 	},
 	"neurons_bw"	: {
 		"min"	: 10,

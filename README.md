@@ -9,18 +9,13 @@ This project addresses the [Digit Recognition Low Power and Speed Challenge](htt
 ## 📁 Repository Structure
 
 ```bash
-├── mnist.py                        # python script for Spiker flow
-├── README.md                       # README file
-├── challenge_environment.yml       # conda environment
-├── configurations.py               # configuration file for mnist.py script
-├── constraints.xdc                 # xdc constraints file
-├── images
-│   └── workflow.png                
-├── mnist_optuna.py                 # optuna script
-└── output                          # output folder with hdl (.vhd) and memory coefficient files (.coe)
-    ├── *.vhd
-    ├── *.coe
-
+├── challenge_environment.yml   # Conda environment file for reproducibility
+├── exploration_scripts/        # Folder with scripts for SNN exploration
+├── images/                     # Diagrams and figures for README files
+├── mnist.ipynb                 # Main Jupyter Notebook for training, quantization & HDL generation
+├── output/                     # Generated HDL files (.vhd) and memory coefficients (.coe)
+├── README.md                   # Project documentation
+├── Trained/                    # Folder for storing trained model
 ```
 
 ## Project Workflow Overview
@@ -46,109 +41,9 @@ Optuna systematically searched the hyperparameter space, evaluating diverse conf
 
 ## 🔧 Quantization & HDL Generation (Spiker+)
 
-### Environment Setup
+The quantization phase refines the trained SNN model for efficient hardware deployment. Using **Spiker+**, we systematically explore numerical precision (bit-width) for neurons and weights balancing resource usage and classification accuracy.
 
-To ensure **reproducibility** and **deterministic** execution, we fixed the random seed for Python, NumPy, and PyTorch. This is essential due to stochastic operations (e.g., Poisson-based spike encoding, random weight initialization).
-
-```python
-import torch
-import numpy as np
-import random
-
-seed = 85
-random.seed(seed)
-np.random.seed(seed)
-torch.manual_seed(seed)
-torch.cuda.manual_seed(seed)
-torch.cuda.manual_seed_all(seed)
-torch.backends.cudnn.deterministic = True
-torch.backends.cudnn.benchmark = False
-```
-
-### Configuration Parameters
-
-The script begins by defining key **parameters** and settings:
-
-```python
-OPTIMIZER = False                                   # Enable or disable quantization optimization
-TRAIN = False                                       # Enable or disable training
-batch_size = 64                                     # Training batch size
-n_epochs = 20                                       # Training epochs
-data_dir = "Mnist/data"                             # Dataset folder
-net_dict = net_dict_75                              # Network configuration
-bitwidth_config = bitwidth_config_75_86_26_lif      # Bitwidth configuration
-output_dir = "output_75_86_26"                      # Save output from script
-SD_PATH = "./Trained/trained_state_dict.pt"         # Save trained model parameter
-```
-
-### Data Loading (MNIST)
-
-We load the MNIST dataset and convert it into spike trains using Poisson-based rate coding:
-
-```python
-from spikerplus.dataloaders import MnistDL
-
-data_loader = MnistDL(data_dir=data_dir, num_steps=net_dict["n_cycles"])
-train_loader, test_loader = data_loader.load(batch_size=batch_size)
-```
-
-### Building the SNN Model
-
-The network is defined and instantiated using **Spiker+** (PyTorch-based SNN model):
-
-```python
-from spikerplus import NetBuilder
-
-net_builder = NetBuilder(net_dict)
-snn = net_builder.build()
-```
-
-### Training the SNN
-
-If `TRAIN=True`, the network undergoes supervised training, employing surrogate-gradient-based **Back-Propagation Through Time** (**BPTT**):
-
-```python
-if TRAIN:
-    from spikerplus import Trainer
-    trainer = Trainer(snn)
-    trainer.train(train_loader, test_loader, n_epochs=n_epochs, store=True)
-else:
-    state_dict = torch.load(SD_PATH)
-    snn.load_state_dict(state_dict)
-```
-
-At the end of the training phase, if the `store=True` parameter is defined, the trained state dict is saved for later inference.
-
-### Optimization via Quantization (Optuna Integration)
-
-If `OPTIMIZER=True`, **Spiker+** performs quantization exploration for future hardware development:
-
-```python
-if OPTIMIZER:
-    from spikerplus import Optimizer
-    opt = Optimizer(snn, net_dict, optim_config)
-    _ = opt.optimize(test_loader)
-
-    optim_config["weights_bw"] = int(input("Pick best weights bitwidth: "))
-    optim_config["neurons_bw"] = int(input("Pick best neurons bitwidth: "))
-    optim_config["fp_dec"] = int(input("Pick best number of fixed-point digits: "))
-```
-
-### HDL Generation for FPGA
-
-Post-training and optimization, the network is converted into synthesizable **VHDL**. **Spiker+** generates VHDL for FPGA deployment, tailored specifically to network quantization and hardware constraints. The output is structured for **FPGA** synthesis, including neuron models, memories, and interfaces.:
-
-```python
-from spikerplus import VhdlGenerator
-from spikerplus.vhdl import write_vhdl, compile_vhdl, elaborate_vhdl
-
-vhdl_generator = VhdlGenerator(snn, optim_config if OPTIMIZER else bitwidth_config)
-vhdl_snn = vhdl_generator.generate(functional=False, interface=True)
-
-write_vhdl(vhdl_snn, rm=True, output_dir=output_dir)
-compile_vhdl(vhdl_snn, output_dir=output_dir)
-elaborate_vhdl(vhdl_snn, output_dir=output_dir)
-```
+👉 Detailed Steps: For a complete step-by-step explanation of the quantization process and HDL generation flow, please refer to the [Quantization & HDL Generation Notebook](./mnist.ipynb).
 
 ## ⚙️ Hardware Deployment (Vivado)
 

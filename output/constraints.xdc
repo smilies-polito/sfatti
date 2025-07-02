@@ -1,4 +1,4 @@
-create_clock -period 7.0 -name sys_clk_pin -waveform {0.000 3.5} -add [get_ports clk]
+create_clock -period 6.10 -name sys_clk_pin -waveform {0.000 3.05} -add [get_ports clk]
 
 set_property IOSTANDARD LVCMOS18 [get_ports {in_spike_addr[9]}]
 set_property IOSTANDARD LVCMOS18 [get_ports {in_spike_addr[8]}]

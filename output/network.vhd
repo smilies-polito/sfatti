@@ -124,6 +124,8 @@ architecture behavior of network is
     signal layer_1_ready : std_logic;
     signal layer_1_feedback : std_logic_vector(9 downto 0);
     signal exc_spikes_0_to_1 : std_logic_vector(74 downto 0);
+    signal zeros_75 : std_logic_vector(74 downto 0) := (others => '0');
+    signal zeros_10 : std_logic_vector(9 downto 0) := (others => '0');
 
 begin
 
@@ -165,7 +167,7 @@ begin
             start => start_all,
             restart => restart,
             exc_spikes => in_spikes,
-            inh_spikes => layer_0_feedback,
+            inh_spikes => zeros_75,
             ready => layer_0_ready,
             out_spikes => layer_0_feedback
         );
@@ -187,7 +189,7 @@ begin
             start => start_all,
             restart => restart,
             exc_spikes => exc_spikes_0_to_1,
-            inh_spikes => layer_1_feedback,
+            inh_spikes => zeros_10,
             ready => layer_1_ready,
             out_spikes => layer_1_feedback
         );

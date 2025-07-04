@@ -1,6 +1,8 @@
-Trained
 __pycache__
 **/Mnist
 output*/
 temp/
 data/mnist/MNIST/raw
+temp/
+vivado_proj
+./.DS_Store

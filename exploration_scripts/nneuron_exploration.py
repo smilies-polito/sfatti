@@ -15,7 +15,7 @@ from datetime import datetime
 ##############
 batch_size = 64
 n_epochs = 30
-data_dir = "Mnist/data"
+data_dir = "../Mnist/data"
 # Base network configuration, modify it with the desired initial config
 base_net_dict = {
     "n_cycles": 10,

@@ -3,3 +3,4 @@ __pycache__
 **/Mnist
 output*/
 temp/
+data/mnist/MNIST/raw

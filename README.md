@@ -1,10 +1,10 @@
 # MNIST Challenge ICIP 2025
 
-## Introduction
+This project addresses the **[Digit Recognition Low Power and Speed Challenge](https://mlunglma.github.io/challenge.html#overview)** at **ICIP 2025**, aiming at developing an FPGA-based accelerator capable of performing efficient and accurate handwritten digit recognition. Specifically, our solution leverages **[Spiker+](https://github.com/smilies-polito/Spiker)**, an open-source framework designed for the rapid development, optimization, and deployment of **Spiking Neural Networks** (**SNNs**) on **FPGA** platforms. The main objective is optimizing classification accuracy, inference speed, and energy efficiency by exploring design trade-offs between SNN complexity and FPGA resource constraints.
 
-This project addresses the [Digit Recognition Low Power and Speed Challenge](https://mlunglma.github.io/challenge.html#overview) at **ICIP 2025**, aiming at developing an FPGA-based accelerator capable of performing efficient and accurate handwritten digit recognition. Specifically, our solution leverages **[Spiker+](https://github.com/alessiocarpegna/spikerplus)**, an open-source framework designed for the rapid development, optimization, and deployment of **Spiking Neural Networks** (**SNNs**) on **FPGA** platforms. The main objective is optimizing classification accuracy, inference speed, and energy efficiency by exploring design trade-offs between SNN complexity and FPGA resource constraints.
-
---  ADD A REFERENCE TO THE PAPER
+**"SFATTI: Spiking FPGA Accelerator for Temporal Task-driven Inference -- A Case Study on MNIST"**  
+*Alessio Caviglia, Filippo Marostica, Alessio Carpegna, Alessandro Savino, Stefano Di Carlo*  
+Presented at **[IEEE ICIP 2025](https://2025.ieeeicip.org)**
 
 ## 📁 Repository Structure
 
@@ -81,3 +81,19 @@ This script loads or trains the SNN model, it applies quantization (if enabled),
 3. **Open Vivado for Hardware Deployment**: Launch Vivado and create a new project. Select the target FPGA part: XC7K160TFBG484-1, add the generated VHDL files from the `output/` folder as project sources, add the provided `.xdc` constraints file to map I/O signals and use the generated `.coe` initialization files to instantiate and initialize ROM memories (typically using the Block Memory Generator IP).
 
 4. **Synthesize and Implement the Design**: Run synthesis and implementation in Vivado to generate the final bitstream. This step finalizes the design and allows you to program the FPGA for live testing.
+
+## 📌 Citation
+
+**[SFATTI: Spiking FPGA Accelerator for Temporal Task-driven Inference -- A Case Study on MNIST](https://arxiv.org/abs/2507.10561)**
+
+```
+@misc{caviglia2025sfattispikingfpgaaccelerator,
+      title={SFATTI: Spiking FPGA Accelerator for Temporal Task-driven Inference -- A Case Study on MNIST}, 
+      author={Alessio Caviglia and Filippo Marostica and Alessio Carpegna and Alessandro Savino and Stefano Di Carlo},
+      year={2025},
+      eprint={2507.10561},
+      archivePrefix={arXiv},
+      primaryClass={cs.NE},
+      url={https://arxiv.org/abs/2507.10561}, 
+}
+```
